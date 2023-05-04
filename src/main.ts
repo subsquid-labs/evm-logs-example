@@ -11,13 +11,43 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async (ctx) => {
     for (let block of ctx.blocks) {
         for (let log of block.logs) {
             if (log.topics[0] === erc20.events.Transfer.topic) {
-                transfers.push(decodeTransfer(ctx, log))
+                transfers.push(getTransfer(ctx, log))
             }
         }
     }
 
     await processTransfers(ctx, transfers)
 })
+
+interface TransferEvent {
+    id: string
+    block: Block
+    transaction: Transaction
+    from: string
+    to: string
+    amount: bigint
+}
+
+function getTransfer(ctx: Context, log: Log): TransferEvent {
+    let event = erc20.events.Transfer.decode(log)
+
+    let from = event.from.toLowerCase()
+    let to = event.to.toLowerCase()
+    let amount = event.value
+
+    let transaction = assertNotNull(log.transaction, `Missing transaction`)
+
+    ctx.log.debug({block: log.block, txHash: transaction.hash}, `Transfer from ${from} to ${to} amount ${amount}`)
+
+    return {
+        id: log.id,
+        block: log.block,
+        transaction,
+        from,
+        to,
+        amount,
+    }
+}
 
 async function processTransfers(ctx: Context, transfersData: TransferEvent[]) {
     let accountIds = new Set<string>()
@@ -53,36 +83,6 @@ async function processTransfers(ctx: Context, transfersData: TransferEvent[]) {
 
     await ctx.store.save(Array.from(accounts.values()))
     await ctx.store.insert(transfers)
-}
-
-interface TransferEvent {
-    id: string
-    block: Block
-    transaction: Transaction
-    from: string
-    to: string
-    amount: bigint
-}
-
-function decodeTransfer(ctx: Context, log: Log): TransferEvent {
-    let event = erc20.events.Transfer.decode(log)
-
-    let from = event.from.toLowerCase()
-    let to = event.to.toLowerCase()
-    let amount = event.value
-
-    let transaction = assertNotNull(log.transaction, `Missing transaction`)
-
-    ctx.log.debug({block: log.block, txHash: transaction.hash}, `Transfer from ${from} to ${to} amount ${amount}`)
-
-    return {
-        id: log.id,
-        block: log.block,
-        transaction,
-        from,
-        to,
-        amount,
-    }
 }
 
 function getAccount(m: Map<string, Account>, id: string): Account {
