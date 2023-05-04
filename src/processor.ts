@@ -1,50 +1,60 @@
-import {BatchHandlerContext, BatchProcessorItem, EvmBatchProcessor, EvmBlock} from '@subsquid/evm-processor'
-import {LogItem} from '@subsquid/evm-processor/lib/interfaces/dataSelection'
-import {Store, TypeormDatabase} from '@subsquid/typeorm-store'
-import { lookupArchive } from '@subsquid/archive-registry'
 import {In} from 'typeorm'
-import {Account, Transfer} from './model'
-
+import {lookupArchive} from '@subsquid/archive-registry'
+import {
+    EvmBatchProcessor,
+    DataHandlerContext,
+    EvmBatchProcessorFields,
+    Log as _Log,
+    Transaction as _Transaction,
+    BlockHeader,
+    assertNotNull,
+} from '@subsquid/evm-processor'
+import {Store, TypeormDatabase} from '@subsquid/typeorm-store'
 import * as erc20 from './abi/erc20'
+import {Account, Transfer} from './model'
 
 const processor = new EvmBatchProcessor()
     .setDataSource({
-        archive: lookupArchive('eth-mainnet'),
+        archive: 'https://v2.archive.subsquid.io/network/ethereum-mainnet',
+        chain: 'https://rpc.ankr.com/eth',
     })
-    .addLog('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', {
-        range: {from: 6_082_465},
-        filter: [[erc20.events.Transfer.topic]],
-        data: {
-            evmLog: {
-                topics: true,
-                data: true,
-            },
-            transaction: {
-                hash: true,
-            },
+    .setFields({
+        log: {
+            topics: true,
+            data: true,
+        },
+        transaction: {
+            hash: true,
         },
     })
+    .addLog({
+        range: {from: 6_082_465},
+        address: ['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'],
+        topic0: [erc20.events.Transfer.topic],
+        transaction: true,
+    })
 
-type Item = BatchProcessorItem<typeof processor>
-type Ctx = BatchHandlerContext<Store, Item>
+type Fields = EvmBatchProcessorFields<typeof processor>
+type Context = DataHandlerContext<Store, Fields>
+type Block = BlockHeader<Fields>
+type Log = _Log<Fields>
+type Transaction = _Transaction<Fields>
 
-processor.run(new TypeormDatabase(), async (ctx) => {
-    let transfersData: TransferEventData[] = []
+processor.run(new TypeormDatabase({supportHotBlocks: true}), async (ctx) => {
+    let transfersData: TransferEvent[] = []
 
     for (let block of ctx.blocks) {
-        for (let item of block.items) {
-            if (item.kind !== 'evmLog') continue
-
-            if (item.evmLog.topics[0] === erc20.events.Transfer.topic) {
-                transfersData.push(handleTransfer(ctx, block.header, item))
+        for (let log of block.logs) {
+            if (log.topics[0] === erc20.events.Transfer.topic) {
+                transfersData.push(decodeTransfer(ctx, log))
             }
         }
     }
 
-    await saveTransfers(ctx, transfersData)
+    await processTransfers(ctx, transfersData)
 })
 
-async function saveTransfers(ctx: Ctx, transfersData: TransferEventData[]) {
+async function processTransfers(ctx: Context, transfersData: TransferEvent[]) {
     let accountIds = new Set<string>()
     for (let t of transfersData) {
         accountIds.add(t.from)
@@ -58,7 +68,7 @@ async function saveTransfers(ctx: Ctx, transfersData: TransferEventData[]) {
     let transfers: Transfer[] = []
 
     for (let t of transfersData) {
-        let {id, blockNumber, timestamp, txHash, amount} = t
+        let {id, block, transaction, amount} = t
 
         let from = getAccount(accounts, t.from)
         let to = getAccount(accounts, t.to)
@@ -66,9 +76,9 @@ async function saveTransfers(ctx: Ctx, transfersData: TransferEventData[]) {
         transfers.push(
             new Transfer({
                 id,
-                blockNumber,
-                timestamp,
-                txHash,
+                blockNumber: block.height,
+                timestamp: new Date(block.timestamp),
+                txHash: transaction.hash,
                 from,
                 to,
                 amount,
@@ -80,30 +90,33 @@ async function saveTransfers(ctx: Ctx, transfersData: TransferEventData[]) {
     await ctx.store.insert(transfers)
 }
 
-interface TransferEventData {
+interface TransferEvent {
     id: string
-    blockNumber: number
-    timestamp: Date
-    txHash: string
+    block: Block
+    transaction: Transaction
     from: string
     to: string
     amount: bigint
 }
 
-function handleTransfer(
-    ctx: Ctx,
-    block: EvmBlock,
-    item: LogItem<{evmLog: {topics: true; data: true}; transaction: {hash: true}}>
-): TransferEventData {
-    let event = erc20.events.Transfer.decode(item.evmLog)
+function decodeTransfer(ctx: Context, log: Log): TransferEvent {
+    let event = erc20.events.Transfer.decode(log)
+
+    let from = event.from.toLowerCase()
+    let to = event.to.toLowerCase()
+    let amount = event.value
+
+    let transaction = assertNotNull(log.transaction, `Missing transaction`)
+
+    ctx.log.debug({block: log.block, txHash: transaction.hash}, `Transfer from ${from} to ${to} amount ${amount}`)
+
     return {
-        id: item.evmLog.id,
-        blockNumber: block.height,
-        timestamp: new Date(block.timestamp),
-        txHash: item.transaction.hash,
-        from: event.from.toLowerCase(),
-        to: event.to.toLowerCase(),
-        amount: event.value.toBigInt(),
+        id: log.id,
+        block: log.block,
+        transaction,
+        from,
+        to,
+        amount,
     }
 }
 
