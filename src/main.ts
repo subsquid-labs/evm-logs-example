@@ -81,7 +81,7 @@ async function processTransfers(ctx: Context, transfersData: TransferEvent[]) {
         )
     }
 
-    await ctx.store.save(Array.from(accounts.values()))
+    await ctx.store.upsert(Array.from(accounts.values()))
     await ctx.store.insert(transfers)
 }
 
