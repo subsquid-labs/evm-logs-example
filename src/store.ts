@@ -182,7 +182,7 @@ export class StoreWithCache {
         return new DeferredValue(this, entityClass, id)
     }
 
-    async flush<E extends Entity>(entityClass: EntityClass<E>): Promise<void> {
+    async flush<E extends Entity>(entityClass?: EntityClass<E>): Promise<void> {
         const entityOrder = await this.getTopologicalOrder()
 
         for (const name of entityOrder) {
@@ -201,7 +201,7 @@ export class StoreWithCache {
             }
             _upsertList.clear()
 
-            if (entityClass.name === name) break
+            if (entityClass && entityClass.name === name) break
         }
     }
 

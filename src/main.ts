@@ -24,6 +24,8 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async (ctx) => {
     }
 
     await processTransfers(newCtx, transfers)
+
+    await newCtx.store.flush()
 })
 
 interface TransferEvent {
