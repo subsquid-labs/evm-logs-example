@@ -24,7 +24,7 @@
       },
       "migration:generate": {
         "description": "Generate a DB migration matching the TypeORM entities",
-        "deps": ["build", "migration:clean"],
+        "deps": ["migration:clean"],
         "cmd": ["squid-typeorm-migration", "generate"],
       },
       "migration:clean": {
@@ -32,7 +32,6 @@
         "cmd": ["npx", "--yes", "rimraf", "./db/migrations/*.js"],
       },
       "migration": {
-        "deps": ["build"],
         "cmd": ["squid-typeorm-migration", "generate"],
         "hidden": true
       },
@@ -46,12 +45,12 @@
       },
       "process": {
         "description": "Load .env and start the squid processor",
-        "deps": ["build", "migration:apply"],
-        "cmd": ["node", "--require=dotenv/config", "lib/processor.js"]
+        "deps": ["migration:apply"],
+        "cmd": ["node", "--require=dotenv/config", "lib/main.js"]
       },
       "process:prod": {
         "description": "Start the squid processor",
-        "cmd": ["node", "lib/processor.js"],
+        "cmd": ["node", "lib/main.js"],
         "hidden": true
       },
       "serve": {
