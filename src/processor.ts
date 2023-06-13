@@ -12,7 +12,7 @@ import * as erc20 from './abi/erc20'
 
 export const processor = new EvmBatchProcessor()
     .setDataSource({
-        archive: 'https://v2.archive.subsquid.io/network/ethereum-mainnet',
+        archive: lookupArchive('eth-mainnet'),
         chain: 'https://rpc.ankr.com/eth',
     })
     .setFinalityConfirmation(10)
