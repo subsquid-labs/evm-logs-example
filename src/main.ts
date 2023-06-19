@@ -3,14 +3,14 @@ import {assertNotNull} from '@subsquid/evm-processor'
 import {TypeormDatabase} from '@subsquid/typeorm-store'
 import * as erc20 from './abi/erc20'
 import {Account, Transfer} from './model'
-import {Block, Context, Log, Transaction, processor} from './processor'
+import {Block, CONTRACT_ADDRESS, Context, Log, Transaction, processor} from './processor'
 
 processor.run(new TypeormDatabase({supportHotBlocks: true}), async (ctx) => {
     let transfers: TransferEvent[] = []
 
     for (let block of ctx.blocks) {
         for (let log of block.logs) {
-            if (log.topics[0] === erc20.events.Transfer.topic) {
+            if (log.address === CONTRACT_ADDRESS && log.topics[0] === erc20.events.Transfer.topic) {
                 transfers.push(getTransfer(ctx, log))
             }
         }

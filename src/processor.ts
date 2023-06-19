@@ -10,6 +10,8 @@ import {
 import {Store} from '@subsquid/typeorm-store'
 import * as erc20 from './abi/erc20'
 
+export const CONTRACT_ADDRESS = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+
 export const processor = new EvmBatchProcessor()
     .setDataSource({
         archive: lookupArchive('eth-mainnet'),
@@ -27,7 +29,7 @@ export const processor = new EvmBatchProcessor()
     })
     .addLog({
         range: {from: 6_082_465},
-        address: ['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'],
+        address: [CONTRACT_ADDRESS],
         topic0: [erc20.events.Transfer.topic],
         transaction: true,
     })
