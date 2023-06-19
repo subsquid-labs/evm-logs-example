@@ -12,11 +12,20 @@
       },
       "up": {
         "description": "Start a PG database",
-        "cmd": ["docker-compose", "up", "-d"]
+        "cmd": [
+          "docker",
+          "compose",
+          "up",
+          "-d"
+        ]
       },
       "down": {
         "description": "Drop a PG database",
-        "cmd": ["docker-compose", "down"]
+        "cmd": [
+          "docker",
+          "compose",
+          "down"
+        ]
       },
       "migration:apply": {
         "description": "Apply the DB migrations",
@@ -25,11 +34,11 @@
       "migration:generate": {
         "description": "Generate a DB migration matching the TypeORM entities",
         "deps": ["migration:clean"],
-        "cmd": ["squid-typeorm-migration", "generate"],
+        "cmd": ["squid-typeorm-migration", "generate"]
       },
       "migration:clean": {
         "description": "Clean the migrations folder",
-        "cmd": ["npx", "--yes", "rimraf", "./db/migrations/*.js"],
+        "cmd": ["npx", "--yes", "rimraf", "./db/migrations/*.js"]
       },
       "migration": {
         "cmd": ["squid-typeorm-migration", "generate"],
