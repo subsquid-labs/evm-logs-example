@@ -13,8 +13,7 @@
       "up": {
         "description": "Start a PG database",
         "cmd": [
-          "docker",
-          "compose",
+          "docker-compose",
           "up",
           "-d"
         ]
