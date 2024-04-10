@@ -1,4 +1,3 @@
-import {lookupArchive} from '@subsquid/archive-registry'
 import {
     BlockHeader,
     DataHandlerContext,
@@ -13,11 +12,12 @@ import * as erc20 from './abi/erc20'
 export const CONTRACT_ADDRESS = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
 
 export const processor = new EvmBatchProcessor()
-    .setDataSource({
-        archive: lookupArchive('eth-mainnet'),
-        chain: 'https://rpc.ankr.com/eth',
+    .setGateway('https://v2.archive.subsquid.io/network/ethereum-mainnet')
+    .setRpcEndpoint({
+        url: 'https://eth-mainnet.public.blastapi.io',
+        rateLimit: 10
     })
-    .setFinalityConfirmation(10)
+    .setFinalityConfirmation(75)
     .setFields({
         log: {
             topics: true,
